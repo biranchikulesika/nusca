@@ -1,3 +1,4 @@
 *
 !.gitignore
 !cbse.py
+!.env.example
