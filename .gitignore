@@ -2,3 +2,4 @@
 !.gitignore
 !cbse.py
 !.env.example
+!README.md
