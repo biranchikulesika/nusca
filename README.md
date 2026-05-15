@@ -29,11 +29,11 @@ RESULTS_CSV=valid_results.csv
 PROGRESS_FILE=progress.txt
 
 URL=https://cbseresults.nic.in/your-current-endpoint.asp
-HEADERS={"User-Agent":"Mozilla/5.0","Referer":"https://cbseresults.nic.in/your-current-page.asp","Origin":"https://cbseresults.nic.in"}
+HEADERS='{"User-Agent":"Mozilla/5.0","Referer":"https://cbseresults.nic.in/your-current-page.asp","Origin":"https://cbseresults.nic.in"}'
 ```
 
 Notes:
-- Keep `HEADERS` as valid JSON.
+- `HEADERS` must be a JSON string value.
 - Update `URL`/`Referer` to the latest active results page before running.
 
 ## Run
@@ -58,4 +58,3 @@ python cbse.py
 - Roll Number
 - School Number
 - Admit ID
-
