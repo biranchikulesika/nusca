@@ -31,14 +31,13 @@ required = [
 ]
 
 if not all(required):
-    raise ValueError("Missing environment variables. " "Check .env file")
+    raise ValueError("Missing environment variables")
 
 # =========================
 # HEADERS FAILSAFE
 # =========================
 
 if "User-Agent" not in HEADERS:
-
     HEADERS["User-Agent"] = "Mozilla/5.0"
 
 # =========================
@@ -56,8 +55,6 @@ def init_db():
 
     conn = sqlite3.connect(DB_FILE)
 
-    conn.execute("PRAGMA foreign_keys = ON")
-
     conn.execute("PRAGMA journal_mode=WAL")
 
     cursor = conn.cursor()
@@ -66,99 +63,103 @@ def init_db():
     # STUDENTS
     # =========================
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS students (
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS students (
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        roll_no TEXT,
-        admit_card_id TEXT,
-        school_code TEXT,
+            roll_no TEXT,
+            admit_card_id TEXT,
+            school_code TEXT,
 
-        candidate_name TEXT,
-        mother_name TEXT,
-        father_name TEXT,
-        school_name TEXT,
+            candidate_name TEXT,
+            mother_name TEXT,
+            father_name TEXT,
+            school_name TEXT,
 
-        result TEXT,
+            result TEXT,
 
-        UNIQUE(
-            roll_no,
-            admit_card_id,
-            school_code
+            UNIQUE(
+                roll_no,
+                admit_card_id,
+                school_code
+            )
         )
+        """
     )
-    """)
 
     # =========================
     # SUBJECTS
     # =========================
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS subjects (
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS subjects (
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        subject_code TEXT UNIQUE,
-        subject_name TEXT
+            subject_code TEXT UNIQUE,
+            subject_name TEXT
+        )
+        """
     )
-    """)
 
     # =========================
     # STUDENT MARKS
     # =========================
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS student_marks (
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS student_marks (
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        student_id INTEGER,
-        subject_id INTEGER,
+            student_id INTEGER,
+            subject_id INTEGER,
 
-        theory_marks TEXT,
-        practical_marks TEXT,
-        total_marks TEXT,
-        grade TEXT,
+            theory_marks TEXT,
+            practical_marks TEXT,
+            total_marks TEXT,
+            grade TEXT,
 
-        is_additional INTEGER DEFAULT 0,
+            is_additional INTEGER DEFAULT 0,
 
-        UNIQUE(student_id, subject_id),
-
-        FOREIGN KEY(student_id)
-            REFERENCES students(id),
-
-        FOREIGN KEY(subject_id)
-            REFERENCES subjects(id)
+            UNIQUE(student_id, subject_id)
+        )
+        """
     )
-    """)
 
     # =========================
     # SCRAPE STATUS
     # =========================
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS scrape_status (
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scrape_status (
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        school_code TEXT,
-        roll_no TEXT,
+            school_code TEXT,
+            roll_no TEXT,
 
-        status TEXT,
+            status TEXT,
 
-        admit_card_id TEXT,
+            admit_card_id TEXT,
+            last_admit_id TEXT,
+            last_index INTEGER DEFAULT 0,
 
-        error_message TEXT,
+            error_message TEXT,
 
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-        UNIQUE(
-            school_code,
-            roll_no
+            UNIQUE(
+                school_code,
+                roll_no
+            )
         )
+        """
     )
-    """)
 
     conn.commit()
 
@@ -209,31 +210,25 @@ def parse_result_html(html):
         if len(cols) == 2:
 
             key = clean_text(cols[0].get_text()).lower()
-
             value = clean_text(cols[1].get_text())
 
             if "roll no" in key:
-
                 data["student"]["roll_no"] = value
 
             elif "candidate name" in key:
-
                 data["student"]["candidate_name"] = value
 
             elif "mother" in key:
-
                 data["student"]["mother_name"] = value
 
             elif "father" in key:
-
                 data["student"]["father_name"] = value
 
             elif "school" in key:
-
                 data["student"]["school_name"] = value
 
         # =========================
-        # SUBJECT TABLE
+        # SUBJECTS
         # =========================
 
         elif len(cols) == 6:
@@ -251,23 +246,17 @@ def parse_result_html(html):
             if first_col in ["", "SUB CODE"]:
                 continue
 
-            subject_code = clean_text(cols[0].get_text())
-
-            if not subject_code.isdigit():
+            if not first_col.isdigit():
                 continue
 
             if additional_subject:
-
                 current_is_additional = 1
-
                 additional_subject = False
-
             else:
-
                 current_is_additional = 0
 
             subject = {
-                "subject_code": subject_code,
+                "subject_code": clean_text(cols[0].get_text()),
                 "subject_name": clean_text(cols[1].get_text()),
                 "theory_marks": clean_text(cols[2].get_text()),
                 "practical_marks": clean_text(cols[3].get_text()),
@@ -279,7 +268,7 @@ def parse_result_html(html):
             data["subjects"].append(subject)
 
     # =========================
-    # RESULT STATUS
+    # RESULT
     # =========================
 
     for row in rows:
@@ -298,7 +287,7 @@ def parse_result_html(html):
 
 
 # =========================
-# SAVE STUDENT
+# SAVE TO DB
 # =========================
 
 
@@ -307,10 +296,6 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
     cursor = conn.cursor()
 
     student = parsed_data["student"]
-
-    # =========================
-    # INSERT STUDENT
-    # =========================
 
     cursor.execute(
         """
@@ -342,10 +327,6 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
         ),
     )
 
-    # =========================
-    # GET STUDENT ID
-    # =========================
-
     cursor.execute(
         """
         SELECT id
@@ -368,21 +349,13 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
 
     student_id = result[0]
 
-    # =========================
-    # SUBJECTS + MARKS
-    # =========================
-
     for subject in parsed_data["subjects"]:
-
-        # Insert subject
 
         cursor.execute(
             """
             INSERT OR IGNORE INTO subjects (
-
                 subject_code,
                 subject_name
-
             )
             VALUES (?, ?)
             """,
@@ -391,8 +364,6 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
                 subject["subject_name"],
             ),
         )
-
-        # Get subject ID
 
         cursor.execute(
             """
@@ -409,8 +380,6 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
             continue
 
         subject_id = result[0]
-
-        # Insert marks
 
         cursor.execute(
             """
@@ -444,7 +413,7 @@ def save_to_db(conn, parsed_data, admit_card_id, school_code):
 
 
 # =========================
-# SCRAPE STATUS HELPERS
+# STATUS HELPERS
 # =========================
 
 
@@ -454,7 +423,7 @@ def get_roll_status(conn, school_code, roll_no):
 
     cursor.execute(
         """
-        SELECT status
+        SELECT status, last_index
         FROM scrape_status
         WHERE school_code = ?
         AND roll_no = ?
@@ -465,12 +434,8 @@ def get_roll_status(conn, school_code, roll_no):
         ),
     )
 
-    result = cursor.fetchone()
+    return cursor.fetchone()
 
-    if result:
-        return result[0]
-
-    return None
 
 
 def update_roll_status(
@@ -479,6 +444,8 @@ def update_roll_status(
     roll_no,
     status,
     admit_card_id=None,
+    last_admit_id=None,
+    last_index=0,
     error_message=None,
 ):
 
@@ -491,21 +458,24 @@ def update_roll_status(
             school_code,
             roll_no,
             status,
+
             admit_card_id,
+            last_admit_id,
+            last_index,
+
             error_message
 
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
 
-        ON CONFLICT(
-            school_code,
-            roll_no
-        )
+        ON CONFLICT(school_code, roll_no)
 
         DO UPDATE SET
 
             status = excluded.status,
             admit_card_id = excluded.admit_card_id,
+            last_admit_id = excluded.last_admit_id,
+            last_index = excluded.last_index,
             error_message = excluded.error_message,
             updated_at = CURRENT_TIMESTAMP
         """,
@@ -514,6 +484,8 @@ def update_roll_status(
             str(roll_no),
             status,
             admit_card_id,
+            last_admit_id,
+            last_index,
             error_message,
         ),
     )
@@ -529,11 +501,9 @@ def update_roll_status(
 def generate_ids(roll_no, school_code):
 
     roll_no = str(roll_no)
-
     school_code = str(school_code)
 
     last_two_roll = roll_no[-2:]
-
     first_two_school = school_code[:2]
 
     for a in string.ascii_uppercase:
@@ -544,16 +514,16 @@ def generate_ids(roll_no, school_code):
 
                 suffix = f"{num:02d}"
 
-                yield (f"{a}{b}" f"{last_two_roll}" f"{first_two_school}" f"{suffix}")
+                yield f"{a}{b}{last_two_roll}{first_two_school}{suffix}"
 
 
 # =========================
-# INIT DB
+# INIT
 # =========================
 
 conn = init_db()
 
-print(f"\n[STARTING]" f" School: {SCHOOL_NO}")
+print(f"\n[STARTING] School: {SCHOOL_NO}")
 
 # =========================
 # MAIN
@@ -563,29 +533,36 @@ try:
 
     for current_roll in range(START_ROLL, END_ROLL + 1):
 
-        print(f"\nChecking Roll: " f"{current_roll}")
+        print(f"\nChecking Roll: {current_roll}")
 
-        # =========================
-        # SKIP COMPLETED
-        # =========================
-
-        existing_status = get_roll_status(
+        status_row = get_roll_status(
             conn,
             SCHOOL_NO,
             current_roll,
         )
 
-        if existing_status == "success":
+        resume_index = 0
 
-            print("[SKIPPED] Already success")
+        if status_row:
 
-            continue
+            existing_status = status_row[0]
+            resume_index = status_row[1] or 0
 
-        if existing_status == "failed":
+            if existing_status == "success":
 
-            print("[SKIPPED] Already failed")
+                print("[SKIPPED] Already success")
 
-            continue
+                continue
+
+            if existing_status == "failed":
+
+                print("[SKIPPED] Already failed")
+
+                continue
+
+            if resume_index > 0:
+
+                print(f"[RESUME] Starting from index {resume_index}")
 
         found = False
 
@@ -594,9 +571,29 @@ try:
             SCHOOL_NO,
         )
 
-        for admit_card_id in generator:
+        for index, admit_card_id in enumerate(generator):
+
+            # =========================
+            # RESUME SKIP
+            # =========================
+
+            if index < resume_index:
+                continue
 
             try:
+
+                # =========================
+                # SAVE PROGRESS BEFORE REQUEST
+                # =========================
+
+                update_roll_status(
+                    conn,
+                    SCHOOL_NO,
+                    current_roll,
+                    "running",
+                    last_admit_id=admit_card_id,
+                    last_index=index,
+                )
 
                 payload = {
                     "regno": str(current_roll),
@@ -619,14 +616,7 @@ try:
 
                 if "Access denied" in html:
 
-                    print("[BLOCKED]" " Sleeping 60s")
-
-                    update_roll_status(
-                        conn,
-                        SCHOOL_NO,
-                        current_roll,
-                        "blocked",
-                    )
+                    print("[BLOCKED] Sleeping 60s")
 
                     time.sleep(60)
 
@@ -644,7 +634,7 @@ try:
 
                 if parsed:
 
-                    print(f"[FOUND] " f"{current_roll} " f"-> " f"{admit_card_id}")
+                    print(f"[FOUND] {current_roll} -> {admit_card_id}")
 
                     save_to_db(
                         conn,
@@ -659,6 +649,8 @@ try:
                         current_roll,
                         "success",
                         admit_card_id=admit_card_id,
+                        last_admit_id=admit_card_id,
+                        last_index=index,
                     )
 
                     found = True
@@ -667,7 +659,7 @@ try:
 
                 else:
 
-                    print(f"[X] " f"{admit_card_id}")
+                    print(f"[X] {admit_card_id}")
 
             except requests.exceptions.Timeout:
 
@@ -684,21 +676,10 @@ try:
                     SCHOOL_NO,
                     current_roll,
                     "error",
+                    last_admit_id=admit_card_id,
+                    last_index=index,
                     error_message=str(e),
                 )
-
-                try:
-
-                    with open(
-                        "failed_page.html",
-                        "w",
-                        encoding="utf-8",
-                    ) as f:
-
-                        f.write(html)
-
-                except:
-                    pass
 
                 time.sleep(2)
 
@@ -723,7 +704,7 @@ try:
 
 except KeyboardInterrupt:
 
-    print("\n\n[STOPPED]" " Ctrl + C detected")
+    print("\n\n[STOPPED] Ctrl + C detected")
 
 # =========================
 # CLEANUP
@@ -737,5 +718,4 @@ finally:
         pass
 
     print("\nDatabase connection closed.")
-
     print("Program terminated.")
