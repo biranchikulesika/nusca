@@ -1,6 +1,11 @@
-# cendrive
+# CBSE Result Utility (cendrive)
 
-Python script to iterate through roll numbers, generate admit card ID candidates, submit them to the configured CBSE result endpoint, and save successful matches.
+Python utility to process configured roll-number ranges against a CBSE results endpoint and record successful responses.
+
+## Important
+
+- Use this tool only for data and systems you are authorized to access.
+- Follow CBSE website terms, local laws, and your institution’s policies.
 
 ## Requirements
 
