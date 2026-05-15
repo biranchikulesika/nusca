@@ -1,0 +1,5 @@
+*
+!.gitignore
+!nusca.py
+!.env.example
+!README.md
